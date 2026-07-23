@@ -1,71 +1,174 @@
-# RAG Full-Stack: FastAPI + React + Docker
+## Getting Started
 
-## Local development (no Docker, fastest for iterating)
+### Prerequisites
 
-**Backend:**
+- **Python 3.11 or 3.12** (avoid 3.13/3.14 for now, some ML dependencies like `sentence-transformers` and `faiss-cpu` don't yet have stable wheels for the newest Python releases)
+- **Node.js 18+** and npm
+- **Docker Desktop** (only needed for the containerized run, not for local development)
+- A **Groq API key** (free, get one at https://console.groq.com/keys) or a **Hugging Face token** (https://huggingface.co/settings/tokens)
+
+---
+
+### Option A: Run locally (recommended for development)
+
+#### 1. Clone the repo
+
+```bash
+git clone https://github.com/YOUR_USERNAME/rag-fullstack.git
+cd rag-fullstack
 ```
+
+#### 2. Set up the backend
+
+```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+python -m venv venv
+```
+
+Activate the virtual environment:
+
+- **Windows (PowerShell):**
+
+```powershell
+  .\venv\Scripts\Activate.ps1
+```
+
+If you get an execution-policy error, run this once first:
+
+```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+- **macOS/Linux:**
+
+```bash
+  source venv/bin/activate
+```
+
+Confirm your prompt shows `(venv)` before continuing.
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Set up your environment variables:
+
+```bash
 cp .env.example .env
-# edit .env: set LLM_PROVIDER=groq and GROQ_API_KEY=your_key
-# (or LLM_PROVIDER=huggingface and HF_TOKEN=your_key)
-python -m app.ingest        # builds the index from data/
+```
+
+Open `.env` and add your real API key:
+
+```
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_actual_key_here
+```
+
+#### 3. Add documents and build the index
+
+Drop any `.txt`, `.pdf`, or `.docx` files into `backend/data/`, then run:
+
+```bash
+python -m app.ingest
+```
+
+You should see something like `Indexed 62 chunks from 3 files`. Re-run this command any time you add or remove files directly in that folder (not needed if you use the in-app upload feature instead).
+
+#### 4. Start the backend
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-**Frontend** (separate terminal):
+If `uvicorn` isn't recognized on Windows, use:
+
+```bash
+python -m uvicorn app.main:app --reload
 ```
+
+Confirm it's working by opening **http://127.0.0.1:8000/health**, you should see `{"status": "ok", ...}`. Leave this terminal running.
+
+#### 5. Start the frontend (in a new terminal)
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173
 
-## Running with Docker Compose (full containerized stack)
+Open **http://localhost:5173**.
 
-1. Set up `backend/.env` as above (real API keys, this file is never baked into the image).
-2. Build the index once, locally, before containerizing (simplest for a portfolio project):
-   ```
-   cd backend && python -m app.ingest
-   ```
-   This writes `backend/index/faiss.index` and `chunks.json`, which docker-compose mounts into the container.
-3. From the project root:
-   ```
-   docker-compose up --build
-   ```
-4. Open http://localhost:3000 (React, served by nginx)
-   Backend API directly reachable at http://localhost:8000
+You should now be able to upload a document, ask a question, and see a grounded answer with cited sources.
 
-## Why the index is a mounted volume, not baked into the image
+---
 
-Rebuilding the Docker image every time you add a document would be slow and
-wasteful. Mounting `backend/index/` as a volume means you can re-run
-`python -m app.ingest` and the running container picks up the new index
-without a rebuild.
+### Option B: Run with Docker Compose (containerized)
 
-## Why VITE_API_URL is http://localhost:8000, not http://backend:8000
+Use this once the local setup above works, Docker adds a layer of indirection that's harder to debug if the underlying code has a real bug.
 
-React code runs in the user's browser after the JS bundle is downloaded,
-the browser has never heard of Docker's internal network or the "backend"
-service name. Only server-to-server calls (which this project doesn't have
-yet) could use that hostname. Anything the browser calls directly must use
-an address the browser's machine can actually resolve.
+#### 1. Make sure Docker Desktop is running
 
-## Switching between Groq and Hugging Face
-
-Change one line in `backend/.env`:
+```bash
+docker ps
 ```
-LLM_PROVIDER=groq          # fast, needs GROQ_API_KEY
-LLM_PROVIDER=huggingface   # needs HF_TOKEN
+
+This should return an empty table with headers, not a connection error. If it errors, open Docker Desktop from your Start menu/Applications and wait for it to fully start.
+
+#### 2. Set up your `.env` file
+
+Same as Option A, Step 2, `backend/.env` must exist with a real API key. Docker Compose reads this file directly.
+
+#### 3. Build and start both containers
+
+From the project root (not inside `backend/` or `frontend/`):
+
+```bash
+docker-compose up --build
 ```
-No code changes required, `llm_providers.py` handles the branching.
 
-## What this demonstrates end to end
+First run takes a few minutes, it's downloading base images and installing dependencies fresh. Watch for `Application startup complete` in the backend logs.
 
-- **RAG**: chunking, embeddings, FAISS retrieval, prompt augmentation
-- **FastAPI**: Pydantic validation, startup-time model loading, CORS
-- **Provider abstraction**: swappable LLM backend, a real design pattern
-- **React**: functional components, hooks (useState, useEffect, useRef), controlled forms
-- **Docker**: multi-stage build for the frontend, layer-cached pip install for the backend
-- **docker-compose**: multi-container orchestration, environment injection, volumes
+#### 4. Open the app
+
+**http://localhost:3000**
+
+#### 5. Stop the containers
+
+```bash
+docker-compose down
+```
+
+Or, to run in the background instead of watching logs:
+
+```bash
+docker-compose up -d
+```
+
+---
+
+### Switching between Groq and Hugging Face
+
+Edit one line in `backend/.env`:
+
+```
+LLM_PROVIDER=groq          # requires GROQ_API_KEY
+LLM_PROVIDER=huggingface   # requires HF_TOKEN
+```
+
+No code changes needed.
+
+---
+
+### Troubleshooting
+
+| Symptom                                                                           | Likely fix                                                                                                             |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `uvicorn` not recognized                                                          | Virtual environment isn't activated, or use `python -m uvicorn ...` instead                                            |
+| `ModuleNotFoundError: No module named 'fastapi'`                                  | `pip install -r requirements.txt` didn't complete, re-run it and watch for errors                                      |
+| `Form data requires "python-multipart"`                                           | `pip install python-multipart`                                                                                         |
+| `ERROR: Could not find a version that satisfies the requirement faiss-cpu==X.X.X` | Loosen the pin in `requirements.txt` to `faiss-cpu>=1.12.0`                                                            |
+| Upload succeeds but answers ignore the new file                                   | Check the backend terminal for a chunk count of `0` for that file, likely a scanned/image PDF with no extractable text |
+| Frontend shows an error but the backend logs show `200 OK`                        | Check `App.jsx` for a status-string mismatch (e.g. comparing against `"success"` when the backend returns `"indexed"`) |
+| `docker-compose up` fails with a pipe/engine connection error                     | Docker Desktop isn't running, start it and wait for `docker ps` to succeed before retrying                             |
