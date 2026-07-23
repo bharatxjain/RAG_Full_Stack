@@ -1,0 +1,97 @@
+# app/main.py
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from app.rag_pipeline import RAGPipeline
+from app.ingest import build_index
+from app.config import DATA_DIR, INDEX_DIR
+
+ALLOWED_EXTENSIONS = (".txt", ".pdf", ".docx", ".md")
+
+app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+pipeline = None
+
+@app.on_event("startup")
+def load_pipeline():
+    global pipeline
+    try:
+        pipeline = RAGPipeline()
+    except FileNotFoundError:
+        pipeline = None
+
+class QueryRequest(BaseModel):
+    question: str
+
+def current_files():
+    return sorted(p.name for p in DATA_DIR.glob("*") if p.suffix.lower() in ALLOWED_EXTENSIONS)
+
+@app.get("/files")
+def list_files():
+    return {"files": current_files()}
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(ALLOWED_EXTENSIONS):
+        raise HTTPException(400, f"Unsupported file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+
+    dest = DATA_DIR / file.filename
+    with open(dest, "wb") as f:
+        f.write(await file.read())
+
+    build_index()
+
+    global pipeline
+    pipeline = RAGPipeline()
+
+    from app.chunking import load_and_chunk_directory
+    records = load_and_chunk_directory(DATA_DIR)
+    this_file_chunks = [r for r in records if r["source"] == file.filename]
+
+    if not this_file_chunks:
+        return {
+            "status": "warning",
+            "filename": file.filename,
+            "message": "File uploaded but no extractable text found, likely a scanned/image file",
+            "files": current_files(),
+        }
+
+    return {"status": "indexed", "filename": file.filename, "chunks": len(this_file_chunks), "files": current_files()}
+
+@app.delete("/files/{filename}")
+def delete_file(filename: str):
+    target = DATA_DIR / filename
+
+    # Path-traversal guard: resolved path must still land inside DATA_DIR
+    if target.resolve().parent != DATA_DIR.resolve():
+        raise HTTPException(400, "Invalid filename")
+    if not target.exists():
+        raise HTTPException(404, "File not found")
+
+    target.unlink()
+
+    global pipeline
+    remaining = current_files()
+
+    if not remaining:
+        for idx_file in (INDEX_DIR / "faiss.index", INDEX_DIR / "chunks.json"):
+            if idx_file.exists():
+                idx_file.unlink()
+        pipeline = None
+        return {"status": "deleted", "filename": filename, "files": []}
+
+    build_index()
+    pipeline = RAGPipeline()
+    return {"status": "deleted", "filename": filename, "files": remaining}
+
+@app.post("/query")
+def query(request: QueryRequest):
+    if pipeline is None:
+        raise HTTPException(400, "No documents indexed yet. Upload a file first.")
+    return pipeline.answer(request.question)
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "index_loaded": pipeline is not None}

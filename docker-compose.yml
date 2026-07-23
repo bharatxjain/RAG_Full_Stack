@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/index:/app/index   # keep the built FAISS index outside the image
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Reachable from the BROWSER, so localhost, not the "backend" service name
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend

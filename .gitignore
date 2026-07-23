@@ -1,0 +1,23 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+
+# Environment secrets, NEVER commit these
+backend/.env
+frontend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Index and uploaded data (regenerable, and may contain your personal docs)
+backend/index/*.index
+backend/index/*.json
+backend/data/*
+!backend/data/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

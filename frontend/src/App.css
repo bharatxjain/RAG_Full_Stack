@@ -1,0 +1,385 @@
+:root {
+  --pine: #1a3c34;
+  --paper: #faf8f2;
+  --line: #ddd8c8;
+  --muted: #6b6558;
+  --ink: #2a2620;
+  --amber: #c9862b;
+  --error: #a13a2e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.catalog {
+  width: 100%;
+  max-width: 640px;
+}
+
+.catalog-header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  display: block;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  margin-bottom: 6px;
+}
+
+.eyebrow-small {
+  font-size: 10px;
+}
+
+.eyebrow-spaced {
+  margin-top: 18px;
+}
+
+.catalog-header h1 {
+  font-size: 32px;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+
+.intro-text {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* --- Upload area --- */
+.upload-slot {
+  margin-top: 24px;
+  padding: 20px;
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.upload-slot.drag-active {
+  border-color: var(--pine);
+  background: #f0ede0;
+}
+
+.upload-label {
+  display: block;
+  cursor: pointer;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--pine);
+}
+
+.upload-label:not(.is-busy):hover {
+  text-decoration: underline;
+}
+
+.upload-label.is-busy {
+  cursor: not-allowed;
+}
+
+.upload-busy-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stamp-mini {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(26, 60, 52, 0.25);
+  border-top-color: var(--pine);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.progress-track {
+  margin-top: 10px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--amber);
+  transition: width 0.15s ease-out;
+}
+
+.allowed-formats {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 10px 0 0;
+  letter-spacing: 0.02em;
+}
+
+.upload-note {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.note-success {
+  color: #1a7f4a;
+}
+.note-warning {
+  color: var(--amber);
+}
+.note-error {
+  color: var(--error);
+}
+
+/* --- File list --- */
+.file-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  transition: background 0.12s ease;
+}
+
+.file-item:hover {
+  background: #f0ede0;
+}
+
+.file-name {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-delete {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--error);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.file-delete:hover:not(:disabled) {
+  background: rgba(161, 58, 46, 0.1);
+}
+
+.file-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Question card --- */
+.query-card {
+  margin-top: 24px;
+}
+
+.query-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.query-row input {
+  flex: 1;
+  padding: 12px 14px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.query-row input:disabled {
+  background: #f0f0ec;
+}
+
+.query-row button {
+  padding: 12px 22px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--pine);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.query-row button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.query-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty-hint {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+
+/* --- Searching state --- */
+.searching-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stamp {
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+
+.stamp-arm {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(26, 60, 52, 0.2);
+  border-top-color: var(--pine);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.stamp-base {
+  display: none;
+}
+
+/* --- Answer card --- */
+.answer-card {
+  margin-top: 20px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.asked-text {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.answer-text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.card-footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.source-row {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.source-stamp {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 11px;
+  background: var(--paper);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+/* --- Idle hint --- */
+.idle-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  font-family: "Inter", system-ui, sans-serif;
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+}
+
+.idle-mark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
