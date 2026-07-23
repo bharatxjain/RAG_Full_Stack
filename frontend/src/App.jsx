@@ -39,6 +39,7 @@ function App() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [deletingFile, setDeletingFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -158,6 +159,34 @@ function App() {
     }
   }
 
+  function requestReset() {
+    setConfirmingReset(true);
+  }
+
+  function cancelReset() {
+    setConfirmingReset(false);
+  }
+
+  async function confirmReset() {
+    setConfirmingReset(false);
+    try {
+      const res = await fetch(`${API_URL}/reset`, { method: "POST" });
+      const data = await res.json();
+      setFiles(data.files || []);
+      setAnswer("");
+      setAskedQuestion("");
+      setSources([]);
+      setUploadStatus({
+        type: "success",
+        text: data.removed?.length
+          ? `Started a new conversation, removed ${data.removed.length} document(s)`
+          : "Started a new conversation",
+      });
+    } catch {
+      setUploadStatus({ type: "error", text: "Could not reach the server" });
+    }
+  }
+
   function handleKeyDown(e) {
     if (e.key === "Enter") ask();
   }
@@ -166,7 +195,7 @@ function App() {
     <div className="page">
       <div className="catalog">
         <header className="catalog-header">
-          <span className="eyebrow">Reference Desk</span>
+          <span className="eyebrow">Upload and Ask</span>
           <h1>Document Q&A</h1>
           <p className="intro-text">
             Upload a document and I'll search it directly to answer your
@@ -174,6 +203,38 @@ function App() {
             underneath.
           </p>
         </header>
+
+        {!confirmingReset ? (
+          <button className="reset-button" onClick={requestReset}>
+            <svg viewBox="0 0 16 16" className="reset-icon" aria-hidden="true">
+              <path
+                d="M2 8a6 6 0 1 1 1.76 4.24M2 8V4M2 8h4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Start a new conversation
+          </button>
+        ) : (
+          <div
+            className="reset-confirm"
+            role="alertdialog"
+            aria-label="Confirm new conversation"
+          >
+            <span>This removes any uploaded documents. Keep going?</span>
+            <div className="reset-confirm-actions">
+              <button className="reset-confirm-yes" onClick={confirmReset}>
+                Yes, start fresh
+              </button>
+              <button className="reset-confirm-no" onClick={cancelReset}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <section
           className={`upload-slot ${dragActive ? "drag-active" : ""}`}
@@ -193,7 +254,7 @@ function App() {
             {uploading ? (
               <span className="upload-busy-text">
                 <span className="stamp-mini" aria-hidden="true" />
-                Filing document... {progress}%
+                Uploading the document... {progress}%
               </span>
             ) : (
               <span>

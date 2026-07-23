@@ -1,34 +1,33 @@
 # app/chunking.py
 from pathlib import Path
-from pypdf import PdfReader
-from docx import Document
+from functools import partial
+from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from app.config import CHUNK_SIZE, CHUNK_OVERLAP
 
-def load_text(file_path: Path) -> str:
-    suffix = file_path.suffix.lower()
-    if suffix == ".pdf":
-        reader = PdfReader(str(file_path))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
-    if suffix == ".docx":
-        doc = Document(str(file_path))
-        return "\n".join(p.text for p in doc.paragraphs)
-    return file_path.read_text(encoding="utf-8", errors="ignore")   # .txt, .md
+LOADERS = {
+    ".pdf": PyPDFLoader,
+    ".docx": Docx2txtLoader,
+    ".txt": partial(TextLoader, autodetect_encoding=True),
+    ".md": partial(TextLoader, autodetect_encoding=True),
+}
 
-def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
-    text = " ".join(text.split())
-    chunks, start = [], 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start = end - overlap
-    return chunks
+def load_and_chunk_directory(data_dir: Path):
+    """Loads every supported file in data_dir and splits it into chunks.
+    Returns LangChain Document objects, each already carrying source metadata."""
+    splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
+    all_docs = []
 
-def load_and_chunk_directory(data_dir: Path) -> list[dict]:
-    records = []
     for file_path in sorted(data_dir.glob("*")):
-        if file_path.suffix.lower() not in (".txt", ".pdf", ".docx", ".md"):
+        loader_cls = LOADERS.get(file_path.suffix.lower())
+        if loader_cls is None:
             continue
-        text = load_text(file_path)
-        for i, chunk in enumerate(chunk_text(text)):
-            records.append({"text": chunk, "source": file_path.name, "chunk_id": f"{file_path.stem}_{i}"})
-    return records
+
+        docs = loader_cls(str(file_path)).load()
+        for doc in docs:
+            doc.metadata["source"] = file_path.name
+
+        all_docs.extend(docs)
+
+    return splitter.split_documents(all_docs)

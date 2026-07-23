@@ -31,3 +31,6 @@ TOP_K = 4
 
 FAISS_INDEX_PATH = INDEX_DIR / "faiss.index"
 CHUNKS_STORE_PATH = INDEX_DIR / "chunks.json"
+
+
+DEFAULT_FILES = {"SQL Notes by Apna College.pdf"}
