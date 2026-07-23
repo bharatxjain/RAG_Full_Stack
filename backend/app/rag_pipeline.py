@@ -1,34 +1,60 @@
 # app/rag_pipeline.py
-import json
-import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from groq import Groq
-from app.config import INDEX_DIR, EMBEDDING_MODEL_NAME, GROQ_API_KEY, GROQ_MODEL_NAME, TOP_K
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import HumanMessage, AIMessage
+
+from app.config import INDEX_DIR, EMBEDDING_MODEL_NAME, TOP_K
+from app.llm_providers import get_llm
+
+MAX_HISTORY_TURNS = 6  # keep last 6 Q&A exchanges, bounds token usage per request
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You are a precise research assistant. Answer the question using ONLY the "
+     "provided context. Be specific, quote exact figures or steps from the context "
+     "where relevant. If the context doesn't contain the answer, say so directly, "
+     "never guess. Use the conversation history to understand follow-up questions."),
+    MessagesPlaceholder("history"),
+    ("user", "Context:\n{context}\n\nQuestion: {question}"),
+])
+
+def format_docs(docs):
+    return "\n\n".join(f"[{d.metadata.get('source', 'unknown')}]\n{d.page_content}" for d in docs)
 
 class RAGPipeline:
     def __init__(self):
-        self.embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
-        self.index = faiss.read_index(str(INDEX_DIR / "faiss.index"))
-        with open(INDEX_DIR / "chunks.json") as f:
-            self.chunks = json.load(f)
-        self.client = Groq(api_key=GROQ_API_KEY)   # <- this line was missing/lost
+        embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+        self.vectorstore = FAISS.load_local(str(INDEX_DIR), embeddings, allow_dangerous_deserialization=True)
+        self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": TOP_K})
 
-    def retrieve(self, query, k=TOP_K):
-        vec = self.embedder.encode([query], convert_to_numpy=True)
-        faiss.normalize_L2(vec)
-        _, indices = self.index.search(vec.astype(np.float32), k)
-        return [self.chunks[i] for i in indices[0] if i != -1]
+        llm = get_llm()
+        self.chain = prompt | llm | StrOutputParser()
 
-    def answer(self, query):
-        retrieved = self.retrieve(query)
-        context = "\n\n".join(f"[{r['source']}]\n{r['text']}" for r in retrieved)
-        messages = [
-            {"role": "system", "content": "Answer using only the provided context."},
-            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
-        ]
-        response = self.client.chat.completions.create(model=GROQ_MODEL_NAME, messages=messages, temperature=0.2)
+        # In-memory only: resets on server restart, and is shared across every
+        # browser tab/user since there's no per-session tracking yet. Fine for
+        # a single-user portfolio demo, worth naming as a known limitation.
+        self.history = []
+
+    def answer(self, query: str) -> dict:
+        retrieved_docs = self.retriever.invoke(query)   # note: retrieval itself doesn't use history yet
+        context = format_docs(retrieved_docs)
+
+        answer_text = self.chain.invoke({
+            "context": context,
+            "question": query,
+            "history": self.history,
+        })
+
+        self.history.append(HumanMessage(content=query))
+        self.history.append(AIMessage(content=answer_text))
+        self.history = self.history[-(MAX_HISTORY_TURNS * 2):]   # trim, oldest exchanges drop off first
+
         return {
-            "answer": response.choices[0].message.content,
-            "sources": list({r["source"] for r in retrieved}),
+            "answer": answer_text,
+            "sources": list({d.metadata.get("source", "unknown") for d in retrieved_docs}),
         }
+
+    def reset_history(self):
+        self.history = []
