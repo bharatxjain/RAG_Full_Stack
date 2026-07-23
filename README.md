@@ -14,7 +14,7 @@
 #### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/rag-fullstack.git
+git clone https://github.com/bharatxjain/RAG_Full_Stack.git
 cd rag-fullstack
 ```
 
