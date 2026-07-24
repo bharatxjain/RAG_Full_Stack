@@ -8,6 +8,13 @@ from app.config import DATA_DIR, INDEX_DIR, DEFAULT_FILES
 
 ALLOWED_EXTENSIONS = (".txt", ".pdf", ".docx", ".md")
 
+app = FastAPI(title="RAG Document Q&A System")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://rag-full-stack.vercel.app/"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
