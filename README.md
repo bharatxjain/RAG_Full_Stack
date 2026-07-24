@@ -113,40 +113,81 @@ Use this once the local setup above works, Docker adds a layer of indirection th
 ```bash
 docker ps
 ```
-
 This should return an empty table with headers, not a connection error. If it errors, open Docker Desktop from your Start menu/Applications and wait for it to fully start.
 
 #### 2. Set up your `.env` file
 
-Same as Option A, Step 2, `backend/.env` must exist with a real API key. Docker Compose reads this file directly.
+Same as Option A, Step 2, `backend/.env` must exist with a real API key. Docker Compose reads this file directly, not your shell environment.
 
-#### 3. Build and start both containers
+#### 3. Confirm your default demo document is present
+
+```bash
+ls backend/data
+```
+The app keeps a default document available even after a conversation reset (see `DEFAULT_FILES` in `backend/app/config.py`), make sure it's actually there before building.
+
+#### 4. Build and start both containers
 
 From the project root (not inside `backend/` or `frontend/`):
-
 ```bash
 docker-compose up --build
 ```
+First run takes a few minutes, it's downloading base images and installing dependencies fresh. Watch for `Application startup complete` in the backend logs before moving on.
 
-First run takes a few minutes, it's downloading base images and installing dependencies fresh. Watch for `Application startup complete` in the backend logs.
+Leave this terminal open, it shows live logs from both containers while they run.
 
-#### 4. Open the app
+#### 5. Verify both containers are actually up, in a separate terminal
 
-**http://localhost:3000**
+```bash
+docker ps
+```
+You should see exactly two rows: `rag-fullstack-backend-1` (port `0.0.0.0:8000->8000`) and `rag-fullstack-frontend-1` (port `0.0.0.0:3000->80`). If you see containers with different names, or none at all, something's wrong before you even open a browser, don't skip this check.
 
-#### 5. Stop the containers
+#### 6. Test the backend directly, before opening the app
 
+```
+http://localhost:8000/health
+```
+Should return `{"status": "ok", ...}`. Confirming this first isolates backend problems from frontend problems if something doesn't look right in Step 7.
+
+#### 7. Open the app
+
+```
+http://localhost:3000
+```
+
+#### 8. Stop the containers
+
+Back in the terminal running `docker-compose up`:
+```
+Ctrl + C
+```
+Or, to run in the background instead of watching logs:
+```bash
+docker-compose up -d
+```
+and to stop that later, from any terminal:
 ```bash
 docker-compose down
 ```
 
-Or, to run in the background instead of watching logs:
+#### If a rebuild after code changes doesn't pick up your latest changes
 
+Docker aggressively caches layers, if something seems stale after editing code or `requirements.txt`, force a clean rebuild:
 ```bash
-docker-compose up -d
+docker-compose down
+docker-compose build --no-cache
+docker-compose up
 ```
 
----
+#### Troubleshooting
+
+| Symptom | Likely fix |
+|---|---|
+| `docker ps` shows a connection/pipe error | Docker Desktop isn't running, start it and wait before retrying |
+| `localhost:3000` unreachable, but `docker ps` looks fine | Check the container names in `docker ps` output, if they don't match `rag-fullstack-backend-1`/`rag-fullstack-frontend-1`, you may have a leftover container from separate `docker run` testing occupying a different port; run `docker ps -a` to check for stray containers and remove unrelated ones |
+| Backend build fails on `pip install` | Check `backend/requirements.txt` uses `>=` version ranges, not exact pins from a `pip freeze` on a different OS/Python version, exact Windows pins often don't resolve inside the Linux container |
+| `/health` works but `/query` fails inside Docker only | `backend/.env` likely has placeholder values instead of your real API key, `env_file` reads it literally |
 
 ### Switching between Groq and Hugging Face
 
