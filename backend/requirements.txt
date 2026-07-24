@@ -1,18 +1,27 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.6
+fastapi
+uvicorn[standard]
 uvicorn
-pydantic>=2.9.2
-python-dotenv>=1.0.1
-python-multipart>=0.0.9
+python-dotenv
+python-multipart
+pydantic
 
-sentence-transformers>=3.1.1
-faiss-cpu>=1.12.0
-pypdf>=5.0.1
-docx2txt>=0.8
+# Document loading & chunking
+pypdf
+langchain-text-splitters
 
-chardet>=5.2.0
-langchain-core>=0.3.0
-langchain-community>=0.3.0
-langchain-text-splitters>=0.3.0
-langchain-groq>=0.2.0
-langchain-huggingface>=0.1.0
+# Embeddings (explicit SentenceTransformer wrapper)
+sentence-transformers
+
+# Vector store
+faiss-cpu
+
+# LangChain core + chain syntax
+langchain
+langchain-core
+langchain-community
+
+# LLM providers — keep whichever your config.py actually uses
+langchain-groq
+langchain-huggingface
+huggingface_hub
+groq
