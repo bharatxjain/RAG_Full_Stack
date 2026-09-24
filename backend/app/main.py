@@ -1,4 +1,5 @@
 # app/main.py
+import logging
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,8 +9,16 @@ from app.config import DATA_DIR, INDEX_DIR, DEFAULT_FILES
 
 ALLOWED_EXTENSIONS = (".txt", ".pdf", ".docx", ".md")
 
+logger = logging.getLogger("uvicorn.error")
+
+ALLOWED_ORIGINS = [
+    "https://rag-full-stack.vercel.app",  # production frontend
+    "http://localhost:5173",              # npm run dev
+    "http://localhost:3000",              # docker-compose frontend
+]
+
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["https://rag-full-stack.vercel.app"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 pipeline = None
 
@@ -40,9 +49,15 @@ async def upload_file(file: UploadFile = File(...)):
     with open(dest, "wb") as f:
         f.write(await file.read())
 
-    build_index()
-
     global pipeline
+    try:
+        build_index()
+    except Exception as e:
+        # Remove the file that broke indexing, otherwise every later rebuild fails too
+        logger.exception("Indexing failed for %s", file.filename)
+        dest.unlink(missing_ok=True)
+        raise HTTPException(422, f"Could not process {file.filename}: {type(e).__name__}: {e}")
+
     pipeline = RAGPipeline()
 
     from app.chunking import load_and_chunk_directory
@@ -90,7 +105,12 @@ def delete_file(filename: str):
 def query(request: QueryRequest):
     if pipeline is None:
         raise HTTPException(400, "No documents indexed yet. Upload a file first.")
-    return pipeline.answer(request.question)
+    try:
+        return pipeline.answer(request.question)
+    except Exception as e:
+        # Unhandled exceptions bypass CORSMiddleware, so the browser would only see a CORS error
+        logger.exception("Query failed")
+        raise HTTPException(502, f"LLM/query error: {type(e).__name__}: {e}")
 
 @app.post("/reset")
 def reset_conversation():

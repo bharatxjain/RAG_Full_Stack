@@ -1,16 +1,32 @@
 # app/chunking.py
 from pathlib import Path
-from functools import partial
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import CHUNK_SIZE, CHUNK_OVERLAP
 
+class PlainTextLoader:
+    """Replaces TextLoader: it defaults to the OS encoding (cp1252 on Windows) and its
+    chardet fallback crashes on chardet>=6. Try UTF-8 first, then common Windows encodings."""
+    ENCODINGS = ("utf-8-sig", "cp1252", "latin-1")  # latin-1 decodes any byte, so this never fails
+
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+
+    def load(self):
+        raw = Path(self.file_path).read_bytes()
+        for encoding in self.ENCODINGS:
+            try:
+                return [Document(page_content=raw.decode(encoding), metadata={"source": self.file_path})]
+            except UnicodeDecodeError:
+                continue
+
 LOADERS = {
     ".pdf": PyPDFLoader,
     ".docx": Docx2txtLoader,
-    ".txt": partial(TextLoader, autodetect_encoding=True),
-    ".md": partial(TextLoader, autodetect_encoding=True),
+    ".txt": PlainTextLoader,
+    ".md": PlainTextLoader,
 }
 
 def load_and_chunk_directory(data_dir: Path):
