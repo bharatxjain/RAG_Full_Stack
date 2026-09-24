@@ -15,7 +15,7 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"  # runs locally, no API key needed
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "llama-3.1-8b-instant")
+GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 HF_MODEL_NAME = os.getenv("HF_MODEL_NAME", "meta-llama/Llama-3.2-3B-Instruct")
